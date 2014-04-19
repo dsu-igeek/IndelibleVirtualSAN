@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="IndelibleVirtualSAN" default="buildJar" basedir=".">
+	<description>
+        Build file for iGeek, Inc. Indelible Backup System
+	</description>
+	<import file="version.xml"/>
+	<import file="../iGeekCommon/build-common.xml"/>
+	<!-- set global properties for this build -->
+	<target name="localProperties">
+		<property name="testData" location="testdata"/>
+		<property name="testTemp" location="${output}/testTemp"/>
+		<property name="jarName" value="IndelibleVirtualSAN.jar"/>
+		<path id="localLibs">
+			<fileset dir="../iGeekCommon/output/lib">
+				<include name="*.jar" />
+			</fileset>
+			<fileset dir="../IndelibleFSClient/output/lib">
+				<include name="*.jar" />
+			</fileset>
+			<fileset dir="../IndelibleServerCore/output/lib">
+				<include name="*.jar" />
+			</fileset>
+			<fileset dir="../jSCSI/output/lib">
+				<include name="*.jar" />
+			</fileset>
+			<fileset dir="../IndelibleWebAccess/output/lib">
+				<include name="*.jar" />
+			</fileset>
+		</path>
+	</target>
+	<target name="buildIndelibleFSClient">
+		<buildOtherProject projectDirName="IndelibleFSClient" />
+	</target>
+	<target name="buildIndelibleServerCore">
+		<buildOtherProject projectDirName="IndelibleServerCore" />
+	</target>
+	<target name="buildjSCSI">
+		<buildOtherProject projectDirName="jSCSI" />
+	</target>
+	<target name="buildIndelibleWebAccess">
+		<buildOtherProject projectDirName="IndelibleWebAccess" />
+	</target>
+	
+	<target name="buildJar" depends="init, buildiGeekCommon, buildIndelibleFSClient, buildIndelibleServerCore, buildjSCSI, buildIndelibleWebAccess, iGeekBuildCommon.buildJar"/>
+</project>
