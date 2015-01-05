@@ -30,11 +30,14 @@ import com.igeekinc.util.SystemInfo;
 public class IndelibleVSANPreferences extends PreferencesManager
 {
 	public static final String kPropertiesFileName = "indelible.vsan.properties"; //$NON-NLS-1$
-	public static final String kPreferencesDirName = "com.igeekinc.indelible";
-	public static final String kLogFileDirectoryPropertyName = "indelible.vsan.LogFileDirectory"; //$NON-NLS-1$
-	public static final String kCacheDirPropertyName = "indelible.vsan.cachedir";
-	public static final String kLogDirName = "indelibleFSLogs";
-    public static final String kCacheDirName = "indelible-vsan-cache";
+	public static final String kPreferencesDirName = "com.igeekinc.indelible";	//$NON-NLS-1$
+	public static final String kDiskImageLogFileDirectoryPropertyName = "indelible.vsan.disklogdir"; //$NON-NLS-1$
+	public static final String kLogFileDirectoryPropertyName = "ndelible.vsan.LogFileDirectory";	//$NON-NLS-1$
+	public static final String kCacheDirPropertyName = "indelible.vsan.cachedir";	//$NON-NLS-1$
+	public static final String kTargetPortNumberPropertyName = "indelible.vsan.targetPortNumber";	//$NON-NLS-1$
+	public static final String kLogDirName = "indelibleFSLogs";	//$NON-NLS-1$
+	public static final String kDiskImageDirName = "indelible-vsan-disk-logs";	//$NON-NLS-1$
+    public static final String kCacheDirName = "indelible-vsan-cache";	//$NON-NLS-1$
     public static void initPreferences() throws IOException
     {
     	new IndelibleVSANPreferences(null);	// This will automatically hook itself to the singleton
@@ -62,19 +65,26 @@ public class IndelibleVSANPreferences extends PreferencesManager
 			throws IOException
 	{
 		File preferencesDir = getPreferencesDir();
-        Properties defaults = new Properties();
-        defaults.setProperty(kLogFileDirectoryPropertyName, new File(SystemInfo.getSystemInfo().getLogDirectory(), kLogDirName).getAbsolutePath()); //$NON-NLS-1$
-        properties = new MonitoredProperties(defaults, dispatcher);
-        setIfNotSet(kPreferencesDirPropertyName, preferencesDir.getAbsolutePath()); //$NON-NLS-1$
-        setIfNotSet(kLogFileDirectoryPropertyName, new File(SystemInfo.getSystemInfo().getLogDirectory(), kLogDirName).getAbsolutePath());
-        setIfNotSet(kCacheDirPropertyName, new File(SystemInfo.getSystemInfo().getCacheDirectory(), kCacheDirName).getAbsolutePath());
-	File propertiesFile = getPreferencesFile(); //$NON-NLS-1$
-	if (propertiesFile.exists())
+		Properties defaults = new Properties();
+		defaults.setProperty(kLogFileDirectoryPropertyName, new File(SystemInfo.getSystemInfo().getLogDirectory(), kLogDirName).getAbsolutePath()); //$NON-NLS-1$
+		properties = new MonitoredProperties(defaults, dispatcher);
+		setIfNotSet(kPreferencesDirPropertyName, preferencesDir.getAbsolutePath()); //$NON-NLS-1$
+		setIfNotSet(kDiskImageLogFileDirectoryPropertyName, new File(SystemInfo.getSystemInfo().getCacheDirectory(), kDiskImageDirName).getAbsolutePath());
+		setIfNotSet(kCacheDirPropertyName, new File(SystemInfo.getSystemInfo().getCacheDirectory(), kCacheDirName).getAbsolutePath());
+		setIfNotSet(kTargetPortNumberPropertyName, "3270");
+		File propertiesFile = getPreferencesFile(); //$NON-NLS-1$
+		if (propertiesFile.exists())
+		{
+			FileInputStream propertiesInputStream = new FileInputStream(propertiesFile);
+			properties.load(propertiesInputStream);
+			propertiesInputStream.close();
+		}
+	}
+	
+	public int getTargetPortNumber()
 	{
-		FileInputStream propertiesInputStream = new FileInputStream(propertiesFile);
-		properties.load(propertiesInputStream);
-		propertiesInputStream.close();
+		String targetPortNumStr = (String) properties.get(kTargetPortNumberPropertyName);
+		int returnPort = Integer.parseInt(targetPortNumStr);
+		return returnPort;
 	}
-	}
-
 }

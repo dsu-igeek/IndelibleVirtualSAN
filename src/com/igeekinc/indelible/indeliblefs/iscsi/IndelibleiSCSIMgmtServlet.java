@@ -39,7 +39,7 @@ import org.jscsi.target.Target;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.igeekinc.indelible.indeliblefs.IndelibleFSClient;
+import com.igeekinc.indelible.indeliblefs.IndelibleFSServer;
 import com.igeekinc.indelible.indeliblefs.IndelibleFSVolumeIF;
 import com.igeekinc.indelible.indeliblefs.IndelibleServerConnectionIF;
 import com.igeekinc.indelible.indeliblefs.datamover.DataMoverSession;
@@ -48,16 +48,12 @@ import com.igeekinc.indelible.indeliblefs.exceptions.ForkNotFoundException;
 import com.igeekinc.indelible.indeliblefs.exceptions.ObjectNotFoundException;
 import com.igeekinc.indelible.indeliblefs.exceptions.PermissionDeniedException;
 import com.igeekinc.indelible.indeliblefs.exceptions.VolumeNotFoundException;
-import com.igeekinc.indelible.indeliblefs.proxies.IndelibleFSServerProxy;
-import com.igeekinc.indelible.indeliblefs.remote.IndelibleFSVolumeRemote;
+import com.igeekinc.indelible.indeliblefs.firehose.IndelibleFSClient;
 import com.igeekinc.indelible.indeliblefs.security.AuthenticationFailureException;
 import com.igeekinc.indelible.indeliblefs.security.EntityAuthenticationServer;
-import com.igeekinc.indelible.indeliblefs.server.IndelibleFSServerConnectionRemote;
-import com.igeekinc.indelible.indeliblefs.server.IndelibleFSServerRemote;
 import com.igeekinc.indelible.indeliblefs.webaccess.IndelibleMgmtException;
 import com.igeekinc.indelible.oid.IndelibleFSObjectID;
 import com.igeekinc.indelible.oid.ObjectIDFactory;
-import com.igeekinc.indelible.server.IndelibleServerPreferences;
 import com.igeekinc.util.FilePath;
 import com.igeekinc.util.logging.ErrorLogMessage;
 
@@ -65,7 +61,7 @@ public class IndelibleiSCSIMgmtServlet extends HttpServlet
 {
     private static final long serialVersionUID = 2374103832749294703L;
 
-    protected IndelibleFSServerProxy fsServer;
+    protected IndelibleFSServer fsServer;
     protected IndelibleServerConnectionIF connection;
     protected EntityAuthenticationServer securityServer;
     private DataMoverSession moverSession;
@@ -74,11 +70,11 @@ public class IndelibleiSCSIMgmtServlet extends HttpServlet
 
     
     public IndelibleiSCSIMgmtServlet() 
-            throws IOException, UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, AuthenticationFailureException, InterruptedException
+            throws IOException, UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, AuthenticationFailureException, InterruptedException, PermissionDeniedException
     {
         logger = Logger.getLogger(getClass());
 
-        IndelibleFSServerProxy[] servers = new IndelibleFSServerProxy[0];
+        IndelibleFSServer[] servers = new IndelibleFSServer[0];
         
         while(servers.length == 0)
         {

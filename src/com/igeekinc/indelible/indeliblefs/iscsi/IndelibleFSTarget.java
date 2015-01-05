@@ -16,6 +16,8 @@
  
 package com.igeekinc.indelible.indeliblefs.iscsi;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.rmi.RemoteException;
@@ -27,11 +29,16 @@ import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.log4j.DailyRollingFileAppender;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.apache.log4j.PropertyConfigurator;
 import org.jscsi.target.Target;
 import org.jscsi.target.TargetServer;
 import org.jscsi.target.settings.TargetConfiguration;
@@ -41,7 +48,6 @@ import org.xml.sax.SAXException;
 import com.igeekinc.indelible.indeliblefs.CreateDirectoryInfo;
 import com.igeekinc.indelible.indeliblefs.CreateFileInfo;
 import com.igeekinc.indelible.indeliblefs.IndelibleDirectoryNodeIF;
-import com.igeekinc.indelible.indeliblefs.IndelibleFSClientPreferences;
 import com.igeekinc.indelible.indeliblefs.IndelibleFSForkIF;
 import com.igeekinc.indelible.indeliblefs.IndelibleFSVolumeIF;
 import com.igeekinc.indelible.indeliblefs.IndelibleFileNodeIF;
@@ -53,7 +59,6 @@ import com.igeekinc.indelible.indeliblefs.exceptions.VolumeNotFoundException;
 import com.igeekinc.indelible.indeliblefs.iscsi.ifsdirect.IndelibleFSDirectTarget;
 import com.igeekinc.indelible.indeliblefs.iscsi.local.IndelibleVSANPreferences;
 import com.igeekinc.indelible.indeliblefs.remote.IndelibleFSForkRemoteOutputStream;
-import com.igeekinc.indelible.indeliblefs.remote.IndelibleFileNodeRemote;
 import com.igeekinc.indelible.indeliblefs.security.AuthenticationFailureException;
 import com.igeekinc.indelible.indeliblefs.utilities.IndelibleFSUtilBase;
 import com.igeekinc.indelible.oid.IndelibleFSObjectID;
@@ -84,11 +89,14 @@ public abstract class IndelibleFSTarget extends IndelibleFSUtilBase
 	IndelibleDirectoryNodeIF configDir = null;
 	public static final String kIndelibleFSTargetConfigurationVolumeMDName = "com.igeekinc.indelible.iscsi.configuration";
 	public static final String kIndelibleFSTargetMACAddrPropertyName = "com.igeekinc.indelible.iscsi.macaddr";
+	public static final String kVerboseLogFileLevelPropertyName = "com.igeekinc.indelible.indeliblefs.iscsi.verboseLogLevel";
 
-    
+	protected DailyRollingFileAppender rollingLog;
+	protected MonitoredProperties targetProperties;
     public IndelibleFSTarget() throws UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, IOException, AuthenticationFailureException, InterruptedException
     {
         super();
+        targetProperties = setupProperties();
     }
     
 	public MonitoredProperties setupProperties() throws IOException
@@ -119,7 +127,7 @@ public abstract class IndelibleFSTarget extends IndelibleFSUtilBase
 	            IndelibleFSVolumeIF retrieveVolume = connection.retrieveVolume(curVolumeID);
 	            try
 	            {
-	                HashMap<String, Object> metaDataResource = retrieveVolume.getMetaDataResource(kIndelibleFSTargetConfigurationVolumeMDName);
+	                Map<String, Object> metaDataResource = retrieveVolume.getMetaDataResource(kIndelibleFSTargetConfigurationVolumeMDName);
 	                if (metaDataResource != null)
 	                {
 	                    // Later we may actually put something in the metadata resource, but for now its existence is our queue
@@ -217,7 +225,7 @@ public abstract class IndelibleFSTarget extends IndelibleFSUtilBase
 	    try
 	    {
 	        targetConfiguration = new TargetConfiguration();
-	        targetConfiguration.setPort(3270);
+	        //targetConfiguration.setPort(targetProperties.);
 	        targetServer.setConfig(targetConfiguration);
 	        return true;
 	    } catch (IOException e)
@@ -294,7 +302,97 @@ public abstract class IndelibleFSTarget extends IndelibleFSUtilBase
             throws ObjectNotFoundException, PermissionDeniedException,
             RemoteException, IOException, ForkNotFoundException;
 
-	public boolean unexport(String unExportTargetName) {
+	public boolean unexport(String unExportTargetName) 
+	{
 	    return targetServer.removeStorageModule(unExportTargetName);
 	}
+	
+	@Override
+    public void setupLogging(MonitoredProperties properties)
+    {
+    	Logger.getRootLogger().setLevel(Level.ERROR);
+        Properties loggingProperties = new Properties();
+        loggingProperties.putAll(properties);
+        File additionalLoggingConfigFile = new File(properties.getProperty(IndelibleVSANPreferences.kPreferencesDirPropertyName),
+        "indelibleVSANOptions.properties"); //$NON-NLS-1$
+        Exception savedException = null;
+        try
+        {
+            if (additionalLoggingConfigFile.exists())
+            {
+                Properties additionalLoggingProperties = new Properties();
+                FileInputStream additionalLoggingInStream = new FileInputStream(additionalLoggingConfigFile);
+                additionalLoggingProperties.load(additionalLoggingInStream);
+                loggingProperties.putAll(additionalLoggingProperties);
+            }	
+        }
+        catch (Exception e)
+        {
+            savedException = e;
+        }
+        Logger.getRootLogger().removeAllAppenders();	// Clean up anything lying around
+        PropertyConfigurator.configure(loggingProperties);
+        rollingLog = new DailyRollingFileAppender();
+    
+        File logDir = new File(getLogFileDir()); //$NON-NLS-1$
+        logDir.mkdirs();
+        File logFile = new File(logDir, getServerLogFileName()); //$NON-NLS-1$
+        System.out.println("Server log file = "+logFile.getAbsolutePath());
+       /* String logFileEncoding = VendorProperties.getLogFileEncoding();
+    	if (logFile.exists() && logFileEncoding.toLowerCase().equals("utf-16") && logFile.length() >= 2)
+    	{
+    		SimpleDateFormat checkFormatter = new SimpleDateFormat("yyyy-MM-dd");
+    		if (checkFormatter.format(new Date()).equals(checkFormatter.format(new Date(logFile.lastModified()))))	// We'll be writing to the same file
+    		{
+    			// Check the BOM
+    			try {
+    				InputStream checkStream = new FileInputStream(logFile);
+    				int bom0 = checkStream.read();
+    				int bom1 = checkStream.read();
+    				if (bom0 == 0xfe && bom1 == 0xff)
+    					logFileEncoding = "utf-16be";
+    				else
+    					logFileEncoding = "utf-16le";
+    			} catch (FileNotFoundException e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			} catch (IOException e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			}
+    		}
+    	}
+        rollingLog.setEncoding(logFileEncoding);*/
+        rollingLog.setFile(logFile.getAbsolutePath());
+        rollingLog.setDatePattern("'.'yyyy-MM-dd"); //$NON-NLS-1$
+        setLogFileLevelFromPrefs();
+    
+        rollingLog.activateOptions();
+        //rollingLog.setLayout(new XMLLayout());
+        rollingLog.setLayout(new PatternLayout("%d %-5p [%t]: %m%n")); //$NON-NLS-1$
+        Logger.getRootLogger().addAppender(rollingLog);
+        
+        // Disable the timing logger for now
+    	Logger timingLogger = Logger.getLogger("org.perf4j.TimingLogger");
+    	timingLogger.setLevel(Level.FATAL);
+    	timingLogger.setAdditivity(false);
+    }
+    
+	public void setLogFileLevelFromPrefs()
+    {
+		Level level = Level.toLevel(targetProperties.getProperty(kVerboseLogFileLevelPropertyName, "INFO"), Level.INFO);
+		rollingLog.setThreshold(level); //$NON-NLS-1$
+		Logger.getRootLogger().setLevel(level);
+		logger.debug("Set debug level to "+level);
+    }
+
+    public String getLogFileDir()
+    {
+        return targetProperties.getProperty(IndelibleVSANPreferences.kLogFileDirectoryPropertyName);
+    }
+    
+    public String getServerLogFileName()
+    {
+        return "indelibleVirtualSAN.log";
+    }
 }

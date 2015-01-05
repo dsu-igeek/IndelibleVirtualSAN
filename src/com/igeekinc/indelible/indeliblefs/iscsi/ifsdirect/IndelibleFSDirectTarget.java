@@ -90,7 +90,7 @@ public class IndelibleFSDirectTarget extends IndelibleFSTarget
         super();
     }
     
-    public void runApp() throws UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, IOException, AuthenticationFailureException, InterruptedException
+    public void runApp() throws UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, IOException, AuthenticationFailureException, InterruptedException, PermissionDeniedException
     {
     	Logger.getRootLogger().setLevel(Level.WARN);
 

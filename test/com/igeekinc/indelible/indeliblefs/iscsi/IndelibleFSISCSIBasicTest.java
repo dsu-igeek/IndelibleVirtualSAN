@@ -17,6 +17,7 @@
 package com.igeekinc.indelible.indeliblefs.iscsi;
 
 import java.io.File;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -25,25 +26,24 @@ import junit.framework.TestCase;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
+import org.newsclub.net.unix.AFUNIXSocketAddress;
 
 import com.igeekinc.indelible.indeliblefs.CreateFileInfo;
 import com.igeekinc.indelible.indeliblefs.IndelibleDirectoryNodeIF;
-import com.igeekinc.indelible.indeliblefs.IndelibleFSClient;
 import com.igeekinc.indelible.indeliblefs.IndelibleFSForkIF;
+import com.igeekinc.indelible.indeliblefs.IndelibleFSServer;
 import com.igeekinc.indelible.indeliblefs.IndelibleFSVolumeIF;
 import com.igeekinc.indelible.indeliblefs.IndelibleFileNodeIF;
 import com.igeekinc.indelible.indeliblefs.IndelibleServerConnectionIF;
 import com.igeekinc.indelible.indeliblefs.datamover.DataMoverReceiver;
 import com.igeekinc.indelible.indeliblefs.datamover.DataMoverSession;
 import com.igeekinc.indelible.indeliblefs.datamover.DataMoverSource;
+import com.igeekinc.indelible.indeliblefs.firehose.IndelibleFSClient;
+import com.igeekinc.indelible.indeliblefs.firehose.IndelibleFSFirehoseClient;
 import com.igeekinc.indelible.indeliblefs.iscsi.local.IndelibleBlockDevice;
 import com.igeekinc.indelible.indeliblefs.iscsi.local.IndelibleBlockDeviceManager;
-import com.igeekinc.indelible.indeliblefs.proxies.IndelibleFSServerProxy;
-import com.igeekinc.indelible.indeliblefs.remote.CreateFileInfoRemote;
-import com.igeekinc.indelible.indeliblefs.remote.IndelibleFSForkRemote;
 import com.igeekinc.indelible.indeliblefs.remote.IndelibleFSForkRemoteInputStream;
 import com.igeekinc.indelible.indeliblefs.remote.IndelibleFSForkRemoteOutputStream;
-import com.igeekinc.indelible.indeliblefs.remote.IndelibleFileNodeRemote;
 import com.igeekinc.indelible.indeliblefs.security.EntityAuthentication;
 import com.igeekinc.indelible.indeliblefs.security.EntityAuthenticationClient;
 import com.igeekinc.indelible.indeliblefs.security.EntityAuthenticationServer;
@@ -66,7 +66,7 @@ public class IndelibleFSISCSIBasicTest extends TestCase
 	private static final long kDeviceSize = 100L*1024L*1024L;
     private static final long kMaxDeviceSpace = 5L*kDeviceSize;
     private static final long kMaxLogSpace = 5L*kDeviceSize;
-	private IndelibleFSServerProxy fsServer;
+	private IndelibleFSServer fsServer;
     private IndelibleFSVolumeIF testVolume;
     private IndelibleDirectoryNodeIF root;
     private IndelibleServerConnectionIF connection;
@@ -97,7 +97,7 @@ public class IndelibleFSISCSIBasicTest extends TestCase
         
         EntityAuthenticationClient.getEntityAuthenticationClient().trustServer(securityServer);
         IndelibleFSClient.start(null, serverProperties);
-        IndelibleFSServerProxy[] servers = new IndelibleFSServerProxy[0];
+        IndelibleFSServer[] servers = new IndelibleFSServer[0];
         
         while(servers.length == 0)
         {
@@ -112,8 +112,24 @@ public class IndelibleFSISCSIBasicTest extends TestCase
             GeneratorIDFactory genIDFactory = new GeneratorIDFactory();
             GeneratorID testBaseID = genIDFactory.createGeneratorID();
             ObjectIDFactory oidFactory = new ObjectIDFactory(testBaseID);
-            DataMoverSource.init(oidFactory);
+            String moverPortStr = serverProperties.getProperty(IndelibleServerPreferences.kMoverPortPropertyName);
+            int moverPort = Integer.parseInt(moverPortStr);
+            
+            String localPortDirStr = serverProperties.getProperty(IndelibleServerPreferences.kLocalPortDirectory);
+            File localPortDir = new File(localPortDirStr);
+            if (localPortDir.exists() && !localPortDir.isDirectory())
+            {
+            	localPortDir.delete();
+            }
+            if (!localPortDir.exists())
+            {
+            	localPortDir.mkdirs();
+            }
+            File localPortSocketFile = new File(localPortDir, "dataMover");
+            // Should have the CAS server and the entity authentication server and client configured by this point
             DataMoverReceiver.init(oidFactory);
+            DataMoverSource.init(oidFactory, new InetSocketAddress(moverPort),
+            		new AFUNIXSocketAddress(localPortSocketFile, moverPort));   // TODO - move this someplace logical
             dataMoverInitialized = true;
         }
         connection = fsServer.open();

@@ -265,6 +265,7 @@ public class IndelibleBlockDeviceManager implements Runnable
 	protected void checkConsistency(IndelibleBlockDevice checkDevice)
 			throws IOException, RemoteException
 	{
+		logger.warn("Starting consistency check on "+checkDevice.stableDevice.getVolumeID()+"/"+checkDevice.stableDevice.getStablePath());
 		IndelibleBlockDevice snapshot;
 		try
 		{
@@ -328,6 +329,8 @@ public class IndelibleBlockDeviceManager implements Runnable
 			// TODO Auto-generated catch block
 			Logger.getLogger(getClass()).error(new ErrorLogMessage("Caught exception"), e);
 		}
+		logger.warn("Finished consistency check on "+checkDevice.stableDevice.getVolumeID()+"/"+checkDevice.stableDevice.getStablePath());
+
 	}
 	
 	public synchronized void deviceUpdated()

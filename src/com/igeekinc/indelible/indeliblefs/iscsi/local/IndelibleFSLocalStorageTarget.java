@@ -28,14 +28,13 @@ import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.jscsi.target.TargetServer;
-import org.jscsi.target.connection.TargetSession;
+import org.jscsi.target.settings.TargetConfiguration;
 import org.jscsi.target.settings.TargetConfigurationXMLParser;
 import org.jscsi.target.settings.TargetInfo;
 
@@ -52,10 +51,7 @@ import com.igeekinc.indelible.indeliblefs.iscsi.IndelibleiSCSIMgmtServlet;
 import com.igeekinc.indelible.indeliblefs.iscsi.assets.AssetsServlet;
 import com.igeekinc.indelible.indeliblefs.security.AuthenticationFailureException;
 import com.igeekinc.indelible.indeliblefs.webaccess.IndelibleFSUtilsServlet;
-import com.igeekinc.indelible.server.IndelibleServerPreferences;
 import com.igeekinc.util.FilePath;
-import com.igeekinc.util.MonitoredProperties;
-import com.igeekinc.util.SystemInfo;
 import com.igeekinc.util.logging.ErrorLogMessage;
 
 /**
@@ -66,7 +62,7 @@ public class IndelibleFSLocalStorageTarget extends IndelibleFSTarget
     public static IndelibleFSLocalStorageTarget indelibleFSTarget;
     
     private IndelibleBlockDeviceManager blockDeviceManager;
-    private MonitoredProperties targetProperties;
+
     /**
      * Starts the jSCSI target.
      * 
@@ -91,18 +87,15 @@ public class IndelibleFSLocalStorageTarget extends IndelibleFSTarget
     public IndelibleFSLocalStorageTarget() throws UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, IOException, AuthenticationFailureException, InterruptedException
     {
         super();
-        targetProperties = setupProperties();
     }
     
-    public void runApp() throws UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, IOException, AuthenticationFailureException, InterruptedException
+    public void runApp() throws UnrecoverableKeyException, InvalidKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IllegalStateException, NoSuchProviderException, SignatureException, IOException, AuthenticationFailureException, InterruptedException, PermissionDeniedException
     {
-    	Logger.getRootLogger().setLevel(Level.WARN);
-
     	try {
 			File stableDeviceDirectory = new File(targetProperties.getProperty(IndelibleVSANPreferences.kCacheDirPropertyName));
 			if (!stableDeviceDirectory.exists())
 				stableDeviceDirectory.mkdir();
-			File logDirectory = new File(targetProperties.getProperty(IndelibleVSANPreferences.kLogFileDirectoryPropertyName));
+			File logDirectory = new File(targetProperties.getProperty(IndelibleVSANPreferences.kDiskImageLogFileDirectoryPropertyName));
 			if (!logDirectory.exists())
 				logDirectory.mkdir();
 			IndelibleServerConnectionIF bdmConnection = fsServer.open();	// Use a separate connection so we don't have any contention for transactions
@@ -111,9 +104,10 @@ public class IndelibleFSLocalStorageTarget extends IndelibleFSTarget
 			logger.fatal("Caught IOException starting IndelibleBlockDeviceManager", e2);
 			return;
 		}
-        System.out.println("jSCSI Target");
+        LOGGER.warn("jSCSI Target");
 
         targetServer = new TargetServer();
+        TargetConfiguration.setOverrideTargetAddress("192.168.1.179");
         // read target settings from configuration file
         // exit if there is a problem
         if (!readConfig()) {
@@ -122,7 +116,7 @@ public class IndelibleFSLocalStorageTarget extends IndelibleFSTarget
                     + ".\nShutting down.");
             return;
         }
-        System.out.println("   port:           " + targetServer.getConfig().getPort());
+        LOGGER.warn("   port:           " + targetServer.getConfig().getPort());
         
         for (TargetInfo curTargetInfo:targetServer.getConfig().getTargetInfo())
         {
@@ -135,7 +129,7 @@ public class IndelibleFSLocalStorageTarget extends IndelibleFSTarget
                     exportVolume = connection.retrieveVolume(curIFSTargetInfo.getStorageVolumeID());
                 } catch (VolumeNotFoundException e1)
                 {
-                    System.err.println("Could not find volume "+curIFSTargetInfo.getStorageVolumeID());
+                	LOGGER.fatal("Could not find volume "+curIFSTargetInfo.getStorageVolumeID());
                     System.exit(1);
                 } catch (RemoteException e)
                 {
@@ -153,10 +147,10 @@ public class IndelibleFSLocalStorageTarget extends IndelibleFSTarget
                         exportVolume, exportFilePath, targetName, targetAlias);
             
                 // print configuration and medium details
-                System.out.println("   target name:    " + targetName);
+                LOGGER.warn("   target name:    " + targetName);
 
-                System.out.println("   storage file:   " + exportFilePath);
-                System.out.println("   file size:      "
+                LOGGER.warn("   storage file:   " + exportFilePath);
+                LOGGER.warn("   file size:      "
                         + indelibleBDStorageModule.getHumanFriendlyMediumSize());
                 
             } catch (FileNotFoundException e) {
