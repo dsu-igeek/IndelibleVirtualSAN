@@ -55,11 +55,18 @@ public class IndelibleVSANPreferences extends PreferencesManager
 		return new File(preferencesDir, kPropertiesFileName);
 	}
 
+	@Override
 	public File getPreferencesDirInternal()
 	{
 		return new File(SystemInfo.getSystemInfo().getGlobalPreferencesDirectory(), kPreferencesDirName);
 	}
 
+	@Override
+	protected File getUserPreferencesDirInternal()
+	{
+		return new File(SystemInfo.getSystemInfo().getUserPreferencesDirectory(), kPreferencesDirName);
+	}
+	
 	@Override
 	protected void initPreferencesInternal(CheckCorrectDispatchThread dispatcher)
 			throws IOException
