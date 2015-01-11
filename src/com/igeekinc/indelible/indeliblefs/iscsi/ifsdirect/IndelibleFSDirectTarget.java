@@ -46,7 +46,6 @@ import com.igeekinc.indelible.indeliblefs.exceptions.VolumeNotFoundException;
 import com.igeekinc.indelible.indeliblefs.iscsi.IndelibleFSTarget;
 import com.igeekinc.indelible.indeliblefs.iscsi.IndelibleFSTargetInfo;
 import com.igeekinc.indelible.indeliblefs.iscsi.IndelibleiSCSIMgmtServlet;
-import com.igeekinc.indelible.indeliblefs.remote.IndelibleFSVolumeRemote;
 import com.igeekinc.indelible.indeliblefs.security.AuthenticationFailureException;
 import com.igeekinc.indelible.indeliblefs.webaccess.IndelibleFSUtilsServlet;
 import com.igeekinc.util.FilePath;
